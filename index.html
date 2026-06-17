@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LLM Observatory - AI Cost, Value and Routing Intelligence</title>
+<style>
+  :root {
+    --paper: #F4EFE3;
+    --paper-2: #EDE6D5;
+    --paper-3: #E6DDC8;
+    --ink: #211C15;
+    --ink-2: #5A5246;
+    --ink-3: #8C8270;
+    --rule: #D8CFBB;
+    --rule-2: #C9BFA6;
+    --red: #C13525;
+    --red-deep: #9E2A1D;
+    --green: #2F6F52;
+    --amber: #B5832A;
+    --term-bg: #211C15;
+    --term-ink: #EDE6D5;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 22px 80px; }
+
+  /* numbers are always tabular monospace, the signature of the instrument */
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    background: var(--paper);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .masthead-inner {
+    max-width: 1180px; margin: 0 auto; padding: 14px 22px 0;
+  }
+  .brand-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand {
+    font-family: var(--serif);
+    font-size: 25px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .brand .slash { color: var(--red); font-weight: 700; }
+  .brand sub { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; color: var(--ink-3); text-transform: uppercase; vertical-align: middle; }
+  .live-pill {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-2); display: flex; align-items: center; gap: 7px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); display: inline-block; }
+  @media (prefers-reduced-motion: no-preference) { .dot { animation: pulse 2.2s ease-in-out infinite; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* header KPI tape */
+  .tape { display: flex; gap: 0; margin-top: 14px; border-top: 1px solid var(--rule); flex-wrap: wrap; }
+  .tape .cell {
+    flex: 1 1 0; min-width: 150px; padding: 11px 16px 12px 0; border-right: 1px solid var(--rule);
+  }
+  .tape .cell:last-child { border-right: 0; }
+  .tape .k { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.12em; font-size: 9.5px; color: var(--ink-3); }
+  .tape .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; margin-top: 3px; letter-spacing: -0.02em; }
+  .tape .d { font-family: var(--mono); font-size: 10.5px; margin-top: 2px; color: var(--ink-2); }
+  .up { color: var(--red); } .down { color: var(--green); }
+
+  /* nav tabs */
+  nav.tabs { display: flex; gap: 0; margin-top: 12px; border-top: 1px solid var(--rule); overflow-x: auto; }
+  nav.tabs button {
+    background: none; border: 0; border-bottom: 2px solid transparent;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-2); padding: 12px 16px 11px; cursor: pointer; white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--red); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+
+  /* ---------- panels ---------- */
+  .panel { display: none; padding-top: 26px; }
+  .panel.active { display: block; animation: fade .25s ease; }
+  @media (prefers-reduced-motion: reduce) { .panel.active { animation: none; } }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 4px; flex-wrap: wrap; }
+  .panel-head h2 { font-family: var(--serif); font-size: 22px; margin: 4px 0 0; font-weight: 700; letter-spacing: -0.01em; }
+  .panel-head .tag { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); }
+  .lede { color: var(--ink-2); font-size: 14px; max-width: 720px; line-height: 1.5; margin: 8px 0 22px; }
+
+  /* stat grid */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 22px; }
+  .stat { background: var(--paper); padding: 14px 16px 16px; }
+  .stat .k { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 9.5px; color: var(--ink-3); }
+  .stat .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 600; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .d { font-family: var(--mono); font-size: 10.5px; margin-top: 3px; color: var(--ink-2); }
+  @media (max-width: 820px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card { border: 1px solid var(--rule); background: var(--paper); padding: 16px 18px 18px; }
+  .card h3 { font-family: var(--sans); font-size: 13px; font-weight: 600; margin: 0 0 2px; letter-spacing: 0; }
+  .card .sub { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); margin-bottom: 14px; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.07em; font-size: 9.5px; color: var(--ink-3);
+    text-align: right; padding: 0 10px 8px; border-bottom: 1px solid var(--ink); font-weight: 500;
+  }
+  thead th:first-child { text-align: left; }
+  tbody td { padding: 9px 10px; border-bottom: 1px solid var(--rule); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tbody td:first-child { text-align: left; font-family: var(--sans); }
+  tbody tr:hover { background: var(--paper-2); }
+  .chip { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .chip.ok { background: rgba(47,111,82,0.12); color: var(--green); }
+  .chip.warn { background: rgba(181,131,42,0.15); color: var(--amber); }
+  .chip.crit { background: rgba(193,53,37,0.12); color: var(--red); }
+  .bar-cell { position: relative; }
+  .minibar { height: 6px; background: var(--red); border-radius: 1px; display: inline-block; vertical-align: middle; }
+
+  /* controls */
+  .control { margin-bottom: 18px; }
+  .control label { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin-bottom: 7px; }
+  .control label .val { color: var(--red); font-size: 13px; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--rule-2); border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--red); cursor: pointer; border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--red); }
+  input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--red); cursor: pointer; border: 2px solid var(--paper); }
+  input[type="range"]:focus-visible { outline: 2px solid var(--red); outline-offset: 4px; }
+
+  select, .seg button {
+    font-family: var(--mono); font-size: 12px; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule-2); padding: 8px 10px; cursor: pointer;
+  }
+  select { width: 100%; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button { border-radius: 2px; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .seg button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+  .btn-reset { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); background: none; border: 1px solid var(--rule-2); padding: 6px 10px; cursor: pointer; border-radius: 2px; }
+  .btn-reset:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* terminal block for the decision log / breakdown */
+  .term { background: var(--term-bg); color: var(--term-ink); font-family: var(--mono); font-size: 12px; line-height: 1.7; padding: 16px 18px; border-radius: 3px; }
+  .term .g { color: #8FB39B; } .term .r { color: #E0917F; } .term .y { color: #D8B872; } .term .dim { color: #8C8270; }
+
+  .winner { border: 1.5px solid var(--red); background: var(--paper); padding: 16px 18px; border-radius: 3px; }
+  .winner .name { font-family: var(--serif); font-size: 19px; font-weight: 700; }
+  .winner .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+
+  .note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 8px; line-height: 1.5; }
+  .footnote { font-family: var(--mono); font-size: 10px; color: var(--ink-3); border-top: 1px solid var(--rule); margin-top: 40px; padding-top: 14px; line-height: 1.6; }
+
+  .feed-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
+  .feed-item .sev { width: 4px; align-self: stretch; border-radius: 2px; flex: 0 0 auto; }
+  .sev.crit { background: var(--red); } .sev.warn { background: var(--amber); } .sev.ok { background: var(--green); }
+  .feed-item .body { flex: 1; }
+  .feed-item .t { font-size: 13px; font-weight: 600; }
+  .feed-item .m { font-size: 12px; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }
+  .feed-item .ts { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 4px; }
+
+  svg text { font-family: var(--mono); fill: var(--ink-2); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); margin-top: 10px; }
+  .legend i { width: 10px; height: 10px; display: inline-block; margin-right: 5px; vertical-align: middle; border-radius: 1px; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand-row">
+      <div class="brand">LLM<span class="slash">/</span>Observatory <sub>ai cost · value · routing</sub></div>
+      <div class="live-pill"><span class="dot"></span> Live · 30d window · synthetic estate</div>
+    </div>
+
+    <div class="tape" id="tape"></div>
+
+    <nav class="tabs" id="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="attribution">Cost attribution</button>
+      <button role="tab" aria-selected="false" data-tab="value">Value &amp; ROI</button>
+      <button role="tab" aria-selected="false" data-tab="routing">Routing playground</button>
+      <button role="tab" aria-selected="false" data-tab="simulator">What-if simulator</button>
+      <button role="tab" aria-selected="false" data-tab="vendor">Vendor intelligence</button>
+      <button role="tab" aria-selected="false" data-tab="governance">Governance</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= COST ATTRIBUTION ================= -->
+  <section class="panel active" id="attribution" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 01</div><h2>Cost attribution &amp; chargeback</h2></div>
+      <div class="tag">per-team unit economics</div>
+    </div>
+    <p class="lede">Every dollar of inference spend traced to a cost centre, with per-call unit economics and a week-over-week anomaly overlay. This is the showback layer finance signs off on.</p>
+
+    <div class="stats" id="attr-stats"></div>
+
+    <div class="card" style="margin-bottom:22px;">
+      <h3>Team-level attribution</h3>
+      <div class="sub">30-day window · chargeback view</div>
+      <table id="attr-table"><thead><tr>
+        <th>Team / cost centre</th><th>Calls</th><th>Tokens in</th><th>Tokens out</th>
+        <th>30d spend</th><th>% total</th><th>$/call</th><th>Share</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Weekly spend trend</h3>
+        <div class="sub">anomaly overlay</div>
+        <div id="trend-chart"></div>
+        <div class="legend"><span><i style="background:var(--ink)"></i>Weekly spend</span><span><i style="background:var(--red)"></i>Anomaly flagged</span></div>
+      </div>
+      <div class="card">
+        <h3>Spend by model</h3>
+        <div class="sub">cost share, 30d</div>
+        <div id="model-chart"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VALUE & ROI ================= -->
+  <section class="panel" id="value" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 02</div><h2>Value &amp; ROI</h2></div>
+      <div class="tag">spend is an input, not the metric</div>
+    </div>
+    <p class="lede">Inference spend only matters against the productivity it buys. This view treats AI as a P&amp;L line: estimated value created, net of spend, with a return multiple per team. Assumptions are explicit and editable below so the model is auditable, not a black box.</p>
+
+    <div class="stats" id="value-stats"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Value vs spend by team</h3>
+        <div class="sub">monthly, estimated</div>
+        <div id="value-chart"></div>
+        <div class="legend"><span><i style="background:var(--green)"></i>Estimated value</span><span><i style="background:var(--red)"></i>Spend</span></div>
+      </div>
+      <div class="card">
+        <h3>Return on AI spend</h3>
+        <div class="sub">value created per $1 of inference</div>
+        <table id="roi-table"><thead><tr>
+          <th>Team</th><th>Spend</th><th>Hrs saved</th><th>Value</th><th>ROI</th>
+        </tr></thead><tbody></tbody></table>
+        <div class="note">Hours saved are logged from team self-report plus tool telemetry. Value uses each team's blended loaded cost per hour. Edit the assumptions below to stress-test.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>Assumptions</h3>
+      <div class="sub">drag to stress-test the value case</div>
+      <div class="grid-2">
+        <div class="control">
+          <label>Blended value per engineer-hour <span class="val num" id="rateOut">$140</span></label>
+          <input type="range" id="rate" min="60" max="320" step="10" value="140" />
+        </div>
+        <div class="control">
+          <label>Hours saved per seat per week <span class="val num" id="hrsOut">5.0</span></label>
+          <input type="range" id="hrs" min="1" max="12" step="0.5" value="5" />
+        </div>
+      </div>
+      <div class="term" id="value-readout"></div>
+    </div>
+  </section>
+
+  <!-- ================= ROUTING PLAYGROUND ================= -->
+  <section class="panel" id="routing" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 03</div><h2>Routing playground</h2></div>
+      <div class="tag">transparent multi-factor scoring</div>
+    </div>
+    <p class="lede">Each request is scored against every eligible model on four dimensions. Org policy sets the base weights; the request's own latency and cost sensitivity reweight them, the scores renormalise, and the highest-scoring eligible model wins. Rejected alternatives and the reason are logged for audit. Pick a workload or move the sliders and watch the decision change.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Inbound request profile</h3>
+        <div class="sub">choose a workload or tune the request</div>
+        <div class="control">
+          <div class="seg" id="usecase-seg"></div>
+        </div>
+        <div class="control">
+          <label>Reasoning complexity <span class="val num" id="reqReasonOut">70</span></label>
+          <input type="range" id="reqReason" min="0" max="100" step="5" value="70" />
+        </div>
+        <div class="control">
+          <label>Context size needed (K tokens) <span class="val num" id="reqCtxOut">32K</span></label>
+          <input type="range" id="reqCtx" min="2" max="400" step="2" value="32" />
+        </div>
+        <div class="control">
+          <label>Latency sensitivity <span class="val num" id="reqLatOut">40</span></label>
+          <input type="range" id="reqLat" min="0" max="100" step="5" value="40" />
+        </div>
+        <div class="control">
+          <label>Cost sensitivity <span class="val num" id="reqCostOut">50</span></label>
+          <input type="range" id="reqCost" min="0" max="100" step="5" value="50" />
+        </div>
+        <button class="btn-reset" id="routeReset">Reset to workload default</button>
+      </div>
+
+      <div class="card">
+        <h3>Routing decision</h3>
+        <div class="sub">highest-scoring eligible model</div>
+        <div class="winner" id="winner"></div>
+        <div style="margin-top:14px;">
+          <div class="eyebrow" style="margin-bottom:8px;">Effective weights after reweighting</div>
+          <div class="term" id="weights"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>Candidate scoring</h3>
+      <div class="sub">fit per dimension · weighted score · eligibility</div>
+      <table id="route-table"><thead><tr>
+        <th>Model</th><th>Reasoning</th><th>Context</th><th>Latency</th><th>Cost</th><th>Score</th><th>$/1K req</th><th>Verdict</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>Decision log</h3>
+      <div class="sub">audit trail</div>
+      <div class="term" id="route-log"></div>
+    </div>
+  </section>
+
+  <!-- ================= SIMULATOR ================= -->
+  <section class="panel" id="simulator" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 04</div><h2>What-if simulator</h2></div>
+      <div class="tag">live recompute</div>
+    </div>
+    <p class="lede">Model the levers an AI ops function actually pulls and watch monthly burn, net value and the 12-month trajectory move in real time. Every output traces back to the baseline estate, so the numbers are defensible rather than aspirational.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Levers</h3>
+        <div class="sub">drag to simulate</div>
+        <div class="control">
+          <label>Premium traffic shifted to right-sized models <span class="val num" id="shiftOut">0%</span></label>
+          <input type="range" id="shift" min="0" max="60" step="5" value="0" />
+        </div>
+        <div class="control">
+          <label>Prompt-cache adoption (input tokens) <span class="val num" id="cacheOut">0%</span></label>
+          <input type="range" id="cache" min="0" max="90" step="5" value="0" />
+        </div>
+        <div class="control">
+          <label>Headcount growth (12mo) <span class="val num" id="growthOut">+0%</span></label>
+          <input type="range" id="growth" min="-10" max="60" step="5" value="0" />
+        </div>
+        <div class="control">
+          <label>Vendor price move <span class="val num" id="priceOut">+0%</span></label>
+          <input type="range" id="price" min="-25" max="25" step="5" value="0" />
+        </div>
+        <button class="btn-reset" id="simReset">Reset to baseline</button>
+      </div>
+
+      <div class="card">
+        <h3>Result</h3>
+        <div class="sub">vs current baseline</div>
+        <div class="stats" style="grid-template-columns:1fr 1fr; margin-bottom:0; border:1px solid var(--rule);">
+          <div class="stat"><div class="k">Monthly burn</div><div class="v num" id="simBurn"></div><div class="d num" id="simBurnD"></div></div>
+          <div class="stat"><div class="k">Annualised</div><div class="v num" id="simAnnual"></div><div class="d num" id="simAnnualD"></div></div>
+          <div class="stat"><div class="k">Net monthly value</div><div class="v num" id="simNet"></div><div class="d num" id="simNetD"></div></div>
+          <div class="stat"><div class="k">Saved vs baseline</div><div class="v num" id="simSaved"></div><div class="d num" id="simSavedD"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>12-month spend trajectory</h3>
+      <div class="sub">baseline path vs simulated path</div>
+      <div id="forecast-chart"></div>
+      <div class="legend"><span><i style="background:var(--ink-3)"></i>Baseline (do nothing)</span><span><i style="background:var(--red)"></i>Simulated</span></div>
+    </div>
+  </section>
+
+  <!-- ================= VENDOR ================= -->
+  <section class="panel" id="vendor" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 05</div><h2>Vendor intelligence</h2></div>
+      <div class="tag">illustrative pricing</div>
+    </div>
+    <p class="lede">Full economics across the model estate: token pricing, context limits, cache discounts and latency class, with the workload each model is the right tool for. Pricing here is illustrative and should be replaced with negotiated rates before use.</p>
+
+    <div class="card" style="margin-bottom:22px;">
+      <h3>Model economics matrix</h3>
+      <div class="sub">input / output $ per 1M tokens</div>
+      <table id="vendor-table"><thead><tr>
+        <th>Model</th><th>Provider</th><th>In $/1M</th><th>Out $/1M</th><th>Context</th><th>Cached in</th><th>Latency</th><th>Best for</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Blended cost per 1M tokens</h3>
+        <div class="sub">3:1 input/output mix</div>
+        <div id="cost-chart"></div>
+      </div>
+      <div class="card">
+        <h3>Latency vs cost</h3>
+        <div class="sub">lower-left is cheaper and faster</div>
+        <div id="scatter-chart"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GOVERNANCE ================= -->
+  <section class="panel" id="governance" role="tabpanel">
+    <div class="panel-head">
+      <div><div class="eyebrow">Section 06</div><h2>Governance</h2></div>
+      <div class="tag">control surface</div>
+    </div>
+    <p class="lede">The control surface: live alerts, model proliferation risk, access hygiene and provider concentration. The risks an AI ops function is accountable for before finance ever asks about cost.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Alerts</h3>
+        <div class="sub">live feed</div>
+        <div id="alerts"></div>
+      </div>
+      <div class="card">
+        <h3>Provider concentration</h3>
+        <div class="sub">single-point-of-failure exposure</div>
+        <div id="concentration-chart"></div>
+        <div class="note" id="concentration-note"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>Model proliferation</h3>
+      <div class="sub">distinct models in production</div>
+      <table id="prolif-table"><thead><tr>
+        <th>Model</th><th>Teams</th><th>Monthly calls</th><th>Spend</th><th>Status</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>API key audit</h3>
+      <div class="sub">access hygiene</div>
+      <table id="key-table"><thead><tr>
+        <th>Key</th><th>Owner</th><th>Team</th><th>Last used</th><th>30d calls</th><th>Status</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <div class="footnote">
+    LLM Observatory · built as a portfolio artifact. Data is synthetic and internally consistent. Pricing is illustrative and configurable. All computation runs in-browser with no external calls.
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   DATA MODEL  (synthetic, internally consistent)
+   ========================================================= */
+const TEAMS = [
+  { name: "Algo-Research",      cc: "RES-01", calls: 520000, tin: 0.62, tout: 0.28, spend: 14800, primary: "Opus 4",     latencySens: 25, hrsSeats: 22 },
+  { name: "Core Dev",           cc: "ENG-02", calls: 640000, tin: 0.40, tout: 0.20, spend: 9600,  primary: "Sonnet 4",   latencySens: 55, hrsSeats: 28 },
+  { name: "Quant Strategies",   cc: "QNT-03", calls: 310000, tin: 0.34, tout: 0.16, spend: 8200,  primary: "GPT-4o",     latencySens: 35, hrsSeats: 14 },
+  { name: "Data Engineering",   cc: "DAT-04", calls: 180000, tin: 0.15, tout: 0.07, spend: 4100,  primary: "Sonnet 4",   latencySens: 45, hrsSeats: 10 },
+  { name: "Infra / Platform",   cc: "INF-05", calls: 140000, tin: 0.08, tout: 0.04, spend: 2980,  primary: "Haiku 4",    latencySens: 70, hrsSeats: 7  },
+  { name: "Risk & Compliance",  cc: "RSK-06", calls: 50000,  tin: 0.04, tout: 0.02, spend: 1600,  primary: "Sonnet 4",   latencySens: 30, hrsSeats: 4  }
+];
+
+const TOTAL_SPEND = TEAMS.reduce((s,t)=>s+t.spend,0);     // 41,280
+const TOTAL_CALLS = TEAMS.reduce((s,t)=>s+t.calls,0);     // 1,840,000
+const TOTAL_TIN   = TEAMS.reduce((s,t)=>s+t.tin,0);       // 1.63B
+const TOTAL_TOUT  = TEAMS.reduce((s,t)=>s+t.tout,0);      // 0.77B
+const TOTAL_TOK   = TOTAL_TIN + TOTAL_TOUT;               // 2.4B
+
+// spend split input vs output (output runs richer)
+const INPUT_SPEND = 16500, OUTPUT_SPEND = TOTAL_SPEND - INPUT_SPEND;
+const PREMIUM_SPEND = 26800; // Opus + GPT-4o + reasoning tier, eligible for right-sizing
+
+// model catalogue. caps: reasoning 0-100, ctxK max context, lat class 1 fast .. 5 slow
+const MODELS = [
+  { name: "Opus 4",       prov: "Anthropic", in: 15.0, out: 75.0, ctxK: 200, cacheIn: 1.50, lat: 4, reasoning: 96, bestFor: "Hardest research, multi-step reasoning" },
+  { name: "Sonnet 4",     prov: "Anthropic", in: 3.0,  out: 15.0, ctxK: 200, cacheIn: 0.30, lat: 3, reasoning: 88, bestFor: "Production coding, agents, default tier" },
+  { name: "Haiku 4",      prov: "Anthropic", in: 0.80, out: 4.0,  ctxK: 200, cacheIn: 0.08, lat: 1, reasoning: 72, bestFor: "High-volume classification, extraction" },
+  { name: "GPT-4o",       prov: "OpenAI",    in: 5.0,  out: 20.0, ctxK: 128, cacheIn: 2.50, lat: 3, reasoning: 86, bestFor: "General reasoning, multimodal" },
+  { name: "GPT-4o-mini",  prov: "OpenAI",    in: 0.60, out: 2.40, ctxK: 128, cacheIn: 0.30, lat: 1, reasoning: 68, bestFor: "Cheap high-throughput tasks" },
+  { name: "o-reason",     prov: "OpenAI",    in: 12.0, out: 48.0, ctxK: 200, cacheIn: 6.0,  lat: 5, reasoning: 94, bestFor: "Deep deliberate reasoning, slow" },
+  { name: "Gemini Pro",   prov: "Google",    in: 2.50, out: 10.0, ctxK: 1000,cacheIn: 0.30, lat: 3, reasoning: 84, bestFor: "Very long context, large docs" },
+  { name: "Gemini Flash", prov: "Google",    in: 0.30, out: 1.20, ctxK: 1000,cacheIn: 0.05, lat: 1, reasoning: 64, bestFor: "Long-context cheap throughput" },
+  { name: "Llama-70B",    prov: "Self-host", in: 0.40, out: 0.40, ctxK: 128, cacheIn: 0.40, lat: 2, reasoning: 70, bestFor: "Data-residency-sensitive, on-prem" }
+];
+
+const USECASES = [
+  { id: "research",   label: "Deep research synth", reasoning: 92, ctx: 120, lat: 20, cost: 30, vol: 38000 },
+  { id: "codegen",    label: "Agentic coding",      reasoning: 80, ctx: 60,  lat: 55, cost: 55, vol: 420000 },
+  { id: "summarise",  label: "Doc summarisation",   reasoning: 55, ctx: 180, lat: 40, cost: 75, vol: 160000 },
+  { id: "classify",   label: "Ticket classify",     reasoning: 35, ctx: 8,   lat: 80, cost: 90, vol: 540000 },
+  { id: "extract",    label: "Data extraction",     reasoning: 45, ctx: 24,  lat: 60, cost: 80, vol: 280000 },
+  { id: "lowlat",     label: "Realtime assist",     reasoning: 50, ctx: 16,  lat: 95, cost: 50, vol: 90000 }
+];
+
+const ALERTS = [
+  { sev: "crit", t: "Spend anomaly · Algo-Research", m: "Week 4 spend up 41% vs trailing 3-week mean. Driver: a batch of 200K-token research prompts on Opus 4. Suggest cache + context trim.", ts: "2h ago" },
+  { sev: "crit", t: "Budget threshold breached", m: "Q2 AI budget exceeded by 12.4% ($6,280). Algo-Research is 71% of the overrun.", ts: "5h ago" },
+  { sev: "warn", t: "Stale API key active", m: "Key svc-legacy-07 unused for 38 days but still enabled with production scope. Rotate or revoke.", ts: "1d ago" },
+  { sev: "warn", t: "Model proliferation", m: "9 distinct models in production across 6 teams. Target is 3 primary plus approved exceptions.", ts: "1d ago" },
+  { sev: "warn", t: "Over-provisioned context", m: "38% of Sonnet 4 calls send 200K context for a task needing under 12K. Trim opportunity $4,200/mo.", ts: "2d ago" },
+  { sev: "ok",   t: "Failover verified", m: "Anthropic to Google failover route tested. RTO 90s, no manual intervention.", ts: "3d ago" }
+];
+
+const KEYS = [
+  { id: "svc-research-01", owner: "M. Rao",   team: "Algo-Research", last: "active",  calls: 410000, status: "ok"   },
+  { id: "svc-coredev-03",  owner: "CI bot",   team: "Core Dev",      last: "active",  calls: 620000, status: "ok"   },
+  { id: "svc-legacy-07",   owner: "unowned",  team: "Infra",         last: "38d ago", calls: 0,      status: "stale" },
+  { id: "svc-quant-04",    owner: "S. Iyer",  team: "Quant",         last: "active",  calls: 295000, status: "ok"   },
+  { id: "pat-adhoc-11",    owner: "intern",   team: "Data Eng",      last: "21d ago", calls: 1200,   status: "review"}
+];
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = (id) => document.getElementById(id);
+const usd = (n) => "$" + Math.round(n).toLocaleString("en-US");
+const usd2 = (n) => "$" + n.toFixed(2);
+const pct = (n) => (n>=0?"+":"") + n.toFixed(1) + "%";
+const compact = (n) => n>=1e9 ? (n/1e9).toFixed(1)+"B" : n>=1e6 ? (n/1e6).toFixed(2)+"M" : n>=1e3 ? (n/1e3).toFixed(0)+"K" : ""+Math.round(n);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+/* =========================================================
+   HEADER TAPE
+   ========================================================= */
+function renderTape() {
+  const cells = [
+    { k: "30d spend", v: usd(TOTAL_SPEND), d: "annualised " + usd(TOTAL_SPEND*12), cls: "" },
+    { k: "API calls", v: compact(TOTAL_CALLS), d: "9 models · 6 teams", cls: "" },
+    { k: "Tokens", v: compact(TOTAL_TOK*1e9), d: compact(TOTAL_TIN*1e9)+" in · "+compact(TOTAL_TOUT*1e9)+" out", cls: "" },
+    { k: "Routing saving", v: usd(11340), d: "27.5% of spend", cls: "down" },
+    { k: "Est. net value", v: usd(VALUE.net), d: VALUE.roi.toFixed(1)+"x return", cls: "down" }
+  ];
+  $("tape").innerHTML = cells.map(c =>
+    `<div class="cell"><div class="k">${c.k}</div><div class="v">${c.v}</div><div class="d ${c.cls}">${c.d}</div></div>`
+  ).join("");
+}
+
+/* =========================================================
+   TAB SWITCHING
+   ========================================================= */
+$("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b===btn ? "true":"false"));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
+});
+
+/* =========================================================
+   SVG CHART PRIMITIVES (hand-rolled, no libraries)
+   ========================================================= */
+function svgEl(w, h) { return `<svg viewBox="0 0 ${w} ${h}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">`; }
+
+function barChartH(data, opts) {           // horizontal bars: [{label,val,color}]
+  const w = 460, rowH = 30, pad = 8, labelW = 120, valW = 64;
+  const h = data.length * rowH + pad*2;
+  const max = Math.max(...data.map(d=>d.val));
+  const barMax = w - labelW - valW - 20;
+  let s = svgEl(w, h);
+  data.forEach((d,i) => {
+    const y = pad + i*rowH + rowH/2;
+    const bw = max ? (d.val/max)*barMax : 0;
+    s += `<text x="0" y="${y+4}" font-size="11" fill="var(--ink)">${d.label}</text>`;
+    s += `<rect x="${labelW}" y="${y-7}" width="${bw}" height="14" fill="${d.color||'var(--red)'}" rx="1"/>`;
+    s += `<text x="${labelW+bw+8}" y="${y+4}" font-size="11" fill="var(--ink-2)">${opts.fmt(d.val)}</text>`;
+  });
+  return s + "</svg>";
+}
+
+function groupedBars(data) {               // [{label, a, b}] a=value(green) b=spend(red)
+  const w = 460, rowH = 38, pad = 10, labelW = 120;
+  const h = data.length*rowH + pad*2;
+  const max = Math.max(...data.map(d=>Math.max(d.a,d.b)));
+  const barMax = w - labelW - 70;
+  let s = svgEl(w, h);
+  data.forEach((d,i) => {
+    const y = pad + i*rowH;
+    s += `<text x="0" y="${y+rowH/2}" font-size="11" fill="var(--ink)">${d.label}</text>`;
+    s += `<rect x="${labelW}" y="${y+5}" width="${(d.a/max)*barMax}" height="9" fill="var(--green)" rx="1"/>`;
+    s += `<rect x="${labelW}" y="${y+18}" width="${(d.b/max)*barMax}" height="9" fill="var(--red)" rx="1"/>`;
+  });
+  return s + "</svg>";
+}
+
+function lineChart(series, opts) {         // series: [{pts:[v..], color, dash}]
+  const w = 480, h = 220, padL = 46, padR = 14, padT = 14, padB = 26;
+  const n = series[0].pts.length;
+  const allV = series.flatMap(s=>s.pts);
+  const max = Math.max(...allV)*1.08, min = Math.min(0, ...allV);
+  const xw = w - padL - padR, yh = h - padT - padB;
+  const X = i => padL + (i/(n-1))*xw;
+  const Y = v => padT + yh - ((v-min)/(max-min))*yh;
+  let s = svgEl(w, h);
+  // gridlines
+  for (let g=0; g<=4; g++) {
+    const yv = min + (max-min)*g/4, y = Y(yv);
+    s += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--rule)" stroke-width="1"/>`;
+    s += `<text x="${padL-8}" y="${y+3}" font-size="9" text-anchor="end" fill="var(--ink-3)">${opts.fmtY(yv)}</text>`;
+  }
+  series.forEach(se => {
+    let d = "";
+    se.pts.forEach((v,i)=>{ d += (i?"L":"M") + X(i) + " " + Y(v) + " "; });
+    s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" ${se.dash?`stroke-dasharray="5 4"`:""}/>`;
+    if (se.dots) se.pts.forEach((v,i)=>{ s += `<circle cx="${X(i)}" cy="${Y(v)}" r="2.5" fill="${se.color}"/>`; });
+  });
+  if (opts.xlabels) opts.xlabels.forEach((l,i)=>{ s += `<text x="${X(i*(n-1)/(opts.xlabels.length-1))}" y="${h-8}" font-size="9" text-anchor="middle" fill="var(--ink-3)">${l}</text>`; });
+  return s + "</svg>";
+}
+
+function trendChart(pts, anomalyIdx) {
+  const w = 480, h = 200, padL = 46, padR = 14, padT = 14, padB = 24;
+  const max = Math.max(...pts)*1.12, xw = w-padL-padR, yh = h-padT-padB, n = pts.length;
+  const X = i => padL + (i/(n-1))*xw;
+  const Y = v => padT + yh - (v/max)*yh;
+  let s = svgEl(w, h);
+  for (let g=0; g<=3; g++){ const y=padT+yh-(g/3)*yh; s+=`<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--rule)"/>`; s+=`<text x="${padL-8}" y="${y+3}" font-size="9" text-anchor="end" fill="var(--ink-3)">${usd(max*g/3)}</text>`; }
+  let d=""; pts.forEach((v,i)=> d += (i?"L":"M")+X(i)+" "+Y(v)+" ");
+  s += `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2"/>`;
+  pts.forEach((v,i)=>{ const c = i===anomalyIdx ? "var(--red)" : "var(--ink)"; const r = i===anomalyIdx?4:2.5; s += `<circle cx="${X(i)}" cy="${Y(v)}" r="${r}" fill="${c}"/>`; if(i===anomalyIdx){ s+=`<text x="${X(i)}" y="${Y(v)-10}" font-size="9" text-anchor="middle" fill="var(--red)">spike</text>`; } });
+  ["W1","W2","W3","W4"].forEach((l,i)=> s += `<text x="${X(i)}" y="${h-6}" font-size="9" text-anchor="middle" fill="var(--ink-3)">${l}</text>`);
+  return s + "</svg>";
+}
+
+function scatter(points) {                 // [{x:lat,y:cost,label}]
+  const w = 460, h = 240, padL = 46, padR = 60, padT = 14, padB = 30;
+  const maxX = 5.5, maxY = Math.max(...points.map(p=>p.y))*1.1;
+  const xw=w-padL-padR, yh=h-padT-padB;
+  const X = v => padL + ((v-0.5)/(maxX-0.5))*xw;
+  const Y = v => padT + yh - (v/maxY)*yh;
+  let s = svgEl(w,h);
+  for(let g=0; g<=4; g++){ const y=padT+(g/4)*yh; s+=`<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--rule)"/>`; s+=`<text x="${padL-8}" y="${padT+yh-(g/4)*yh+3}" font-size="9" text-anchor="end" fill="var(--ink-3)">${usd(maxY*g/4)}</text>`; }
+  points.forEach(p=>{ s += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4" fill="var(--red)"/>`; s += `<text x="${X(p.x)+7}" y="${Y(p.y)+3}" font-size="9" fill="var(--ink-2)">${p.label}</text>`; });
+  s += `<text x="${padL+xw/2}" y="${h-4}" font-size="9" text-anchor="middle" fill="var(--ink-3)">slower latency &#8594;</text>`;
+  return s + "</svg>";
+}
+
+/* =========================================================
+   SECTION 01 - ATTRIBUTION
+   ========================================================= */
+function renderAttribution() {
+  $("attr-stats").innerHTML = [
+    { k:"Monthly burn", v: usd(TOTAL_SPEND), d:"annualised "+usd(TOTAL_SPEND*12) },
+    { k:"Avg $/call", v: usd2(TOTAL_SPEND/TOTAL_CALLS*1000)+"/1K", d:"blended" },
+    { k:"Committed-use util.", v:"84%", d:"of $30K commit · underrun risk" },
+    { k:"Variance vs budget", v:"+$6,280", d:"12.4% over Q2 budget" }
+  ].map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v">${s.v}</div><div class="d">${s.d}</div></div>`).join("");
+
+  const maxSpend = Math.max(...TEAMS.map(t=>t.spend));
+  $("attr-table").querySelector("tbody").innerHTML = TEAMS.map(t=>`
+    <tr>
+      <td>${t.name}<br><span class="eyebrow">${t.cc}</span></td>
+      <td>${compact(t.calls)}</td>
+      <td>${t.tin.toFixed(2)}B</td>
+      <td>${t.tout.toFixed(2)}B</td>
+      <td>${usd(t.spend)}</td>
+      <td>${(t.spend/TOTAL_SPEND*100).toFixed(1)}%</td>
+      <td>${usd2(t.spend/t.calls*1000)}</td>
+      <td class="bar-cell"><span class="minibar" style="width:${t.spend/maxSpend*70}px"></span></td>
+    </tr>`).join("");
+
+  $("trend-chart").innerHTML = trendChart([8900, 9600, 9400, 13380], 3);
+
+  const byModel = {};
+  TEAMS.forEach(t => byModel[t.primary] = (byModel[t.primary]||0) + t.spend);
+  const md = Object.entries(byModel).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k, val:v}));
+  $("model-chart").innerHTML = barChartH(md, { fmt: usd });
+}
+
+/* =========================================================
+   SECTION 02 - VALUE & ROI
+   ========================================================= */
+let VALUE = {};
+function computeValue(rate, hrsPerSeatWk) {
+  const rows = TEAMS.map(t => {
+    const hrs = t.hrsSeats * hrsPerSeatWk * 4.33;     // monthly
+    const value = hrs * rate;
+    return { name: t.name, spend: t.spend, hrs, value, roi: value/t.spend };
+  });
+  const totalValue = rows.reduce((s,r)=>s+r.value,0);
+  VALUE = { rows, totalValue, net: totalValue - TOTAL_SPEND, roi: totalValue/TOTAL_SPEND };
+  return VALUE;
+}
+function renderValue() {
+  const rate = +$("rate").value, hrs = +$("hrs").value;
+  $("rateOut").textContent = "$"+rate; $("hrsOut").textContent = hrs.toFixed(1);
+  const v = computeValue(rate, hrs);
+
+  $("value-stats").innerHTML = [
+    { k:"Est. value created", v: usd(v.totalValue), d:"per month" },
+    { k:"Inference spend", v: usd(TOTAL_SPEND), d:"per month" },
+    { k:"Net monthly value", v: usd(v.net), d:"value minus spend" },
+    { k:"Return on AI spend", v: v.roi.toFixed(1)+"x", d:"value per $1 inference" }
+  ].map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v">${s.v}</div><div class="d">${s.d}</div></div>`).join("");
+
+  $("value-chart").innerHTML = groupedBars(v.rows.map(r=>({label:r.name, a:r.value, b:r.spend})));
+
+  $("roi-table").querySelector("tbody").innerHTML = v.rows.sort((a,b)=>b.roi-a.roi).map(r=>`
+    <tr><td>${r.name}</td><td>${usd(r.spend)}</td><td>${compact(r.hrs)}</td><td>${usd(r.value)}</td>
+    <td><span class="chip ${r.roi>10?'ok':r.roi>4?'warn':'crit'}">${r.roi.toFixed(1)}x</span></td></tr>`).join("");
+
+  $("value-readout").innerHTML =
+    `<span class="dim">// value model</span>\n` +
+    `seats        = ${TEAMS.reduce((s,t)=>s+t.hrsSeats,0)} active\n` +
+    `hours_saved  = seats &#215; ${hrs.toFixed(1)} hr/wk &#215; 4.33 = <span class="y">${compact(v.totalValue/rate)} hr/mo</span>\n` +
+    `value        = hours_saved &#215; $${rate}/hr = <span class="g">${usd(v.totalValue)}/mo</span>\n` +
+    `spend        = <span class="r">${usd(TOTAL_SPEND)}/mo</span>\n` +
+    `net_value    = value &#8722; spend = <span class="g">${usd(v.net)}/mo</span>\n` +
+    `roi          = value / spend = <span class="y">${v.roi.toFixed(1)}x</span>`;
+  renderTape();
+}
+
+/* =========================================================
+   SECTION 03 - ROUTING ENGINE
+   ========================================================= */
+const BASE_W = { reasoning: 0.35, context: 0.25, latency: 0.20, cost: 0.20 };
+
+function effectiveWeights(req) {
+  let w = {
+    reasoning: BASE_W.reasoning,
+    context: BASE_W.context,
+    latency: BASE_W.latency * (req.lat/50),
+    cost: BASE_W.cost * (req.cost/50)
+  };
+  const sum = w.reasoning + w.context + w.latency + w.cost;
+  return { reasoning:w.reasoning/sum, context:w.context/sum, latency:w.latency/sum, cost:w.cost/sum };
+}
+
+function scoreModel(m, req, maxBlended) {
+  // eligibility
+  if (m.ctxK < req.ctx) return { eligible:false, reason:`context ${m.ctxK}K < ${req.ctx}K required` };
+  if (m.reasoning < req.reasoning - 4) return { eligible:false, reason:`reasoning ${m.reasoning} below need ${req.reasoning}` };
+  // fits 0-100
+  const reasoningFit = clamp(100 - Math.max(0, m.reasoning - req.reasoning) * 0.5, 0, 100); // penalise overkill
+  const ctxOver = (m.ctxK - req.ctx) / Math.max(req.ctx,1);
+  const contextFit = clamp(100 - Math.min(70, ctxOver * 12), 0, 100);
+  const latencyFit = (6 - m.lat) * 20;                       // class1=100 .. class5=20
+  const blended = (m.in*3 + m.out*1) / 4;
+  const costFit = clamp(100 - (blended / maxBlended) * 100, 0, 100);
+  return { eligible:true, reasoningFit, contextFit, latencyFit, costFit, blended };
+}
+
+function runRouting(req) {
+  const maxBlended = Math.max(...MODELS.map(m=>(m.in*3+m.out*1)/4));
+  const w = effectiveWeights(req);
+  const scored = MODELS.map(m => {
+    const s = scoreModel(m, req, maxBlended);
+    if (!s.eligible) return { m, eligible:false, reason:s.reason, score:-1 };
+    const score = w.reasoning*s.reasoningFit + w.context*s.contextFit + w.latency*s.latencyFit + w.cost*s.costFit;
+    return { m, eligible:true, ...s, score };
+  });
+  scored.sort((a,b)=> b.score - a.score);
+  return { scored, w, maxBlended };
+}
+
+let currentUseCase = USECASES[1];
+function setRequestFromUseCase(uc) {
+  $("reqReason").value = uc.reasoning; $("reqCtx").value = uc.ctx;
+  $("reqLat").value = uc.lat; $("reqCost").value = uc.cost;
+}
+function readRequest() {
+  return { reasoning:+$("reqReason").value, ctx:+$("reqCtx").value, lat:+$("reqLat").value, cost:+$("reqCost").value };
+}
+function renderRouting() {
+  $("reqReasonOut").textContent = $("reqReason").value;
+  $("reqCtxOut").textContent = $("reqCtx").value + "K";
+  $("reqLatOut").textContent = $("reqLat").value;
+  $("reqCostOut").textContent = $("reqCost").value;
+
+  const req = readRequest();
+  const { scored, w } = runRouting(req);
+  const winner = scored.find(s=>s.eligible);
+
+  // unit cost per request at an illustrative 4K input + 1K output payload
+  const unitCost = (m) => ((m.in*4 + m.out*1)/1000); // $ per request
+  const winnerUnit = winner ? unitCost(winner.m) : 0;
+
+  if (winner) {
+    $("winner").innerHTML =
+      `<div class="name">${winner.m.name}</div>
+       <div class="meta">${winner.m.prov} · score ${winner.score.toFixed(1)}/100 · reasoning ${winner.m.reasoning} · ${winner.m.ctxK}K ctx · latency class ${winner.m.lat}</div>
+       <div class="meta" style="margin-top:8px;color:var(--green)">${usd2(winnerUnit*1000)} per 1K requests at this profile</div>`;
+  } else {
+    $("winner").innerHTML = `<div class="name" style="color:var(--red)">No eligible model</div><div class="meta">Loosen context or reasoning requirements.</div>`;
+  }
+
+  $("weights").innerHTML =
+    `reasoning  <span class="y">${(w.reasoning*100).toFixed(0)}%</span>   (policy 35%)\n` +
+    `context    <span class="y">${(w.context*100).toFixed(0)}%</span>   (policy 25%)\n` +
+    `latency    <span class="y">${(w.latency*100).toFixed(0)}%</span>   (policy 20% &#215; sens ${req.lat}/50)\n` +
+    `cost       <span class="y">${(w.cost*100).toFixed(0)}%</span>   (policy 20% &#215; sens ${req.cost}/50)`;
+
+  $("route-table").querySelector("tbody").innerHTML = scored.map(s=>{
+    if (!s.eligible) return `<tr style="opacity:.5"><td>${s.m.name}</td><td colspan="5" style="text-align:left;color:var(--red)">ineligible: ${s.reason}</td><td>${usd2(unitCost(s.m)*1000)}</td><td><span class="chip crit">excluded</span></td></tr>`;
+    const win = s===winner;
+    return `<tr ${win?'style="background:rgba(193,53,37,0.06)"':''}>
+      <td>${s.m.name}${win?' <span class="chip crit">selected</span>':''}</td>
+      <td>${s.reasoningFit.toFixed(0)}</td><td>${s.contextFit.toFixed(0)}</td>
+      <td>${s.latencyFit.toFixed(0)}</td><td>${s.costFit.toFixed(0)}</td>
+      <td><strong>${s.score.toFixed(1)}</strong></td>
+      <td>${usd2(unitCost(s.m)*1000)}</td>
+      <td><span class="chip ${win?'ok':'warn'}">${win?'route':'eligible'}</span></td>
+    </tr>`;
+  }).join("");
+
+  // routing opportunity expressed as a unit-cost reduction vs running this workload on the premium tier (Opus 4)
+  const baseline = MODELS.find(m=>m.name==="Opus 4");
+  const baseUnit = unitCost(baseline);
+  const reductionPct = winner ? (1 - winnerUnit/baseUnit) * 100 : 0;
+  $("route-log").innerHTML =
+    `<span class="dim">// routing decision · ${new Date().toLocaleTimeString()}</span>\n` +
+    `request   reasoning=${req.reasoning} ctx=${req.ctx}K lat_sens=${req.lat} cost_sens=${req.cost}\n` +
+    `eligible  <span class="g">${scored.filter(s=>s.eligible).length}</span> of ${MODELS.length} models\n` +
+    (winner ? `selected  <span class="g">${winner.m.name}</span> (score ${winner.score.toFixed(1)})\n` : `selected  <span class="r">none</span>\n`) +
+    (winner && scored.filter(s=>s.eligible)[1] ? `runner-up <span class="dim">${scored.filter(s=>s.eligible)[1].m.name} (${scored.filter(s=>s.eligible)[1].score.toFixed(1)})</span>\n` : "") +
+    `\n<span class="dim">// unit economics for "${currentUseCase.label}" (${compact(currentUseCase.vol)} calls/mo)</span>\n` +
+    `premium   Opus 4 = ${usd2(baseUnit*1000)} / 1K req\n` +
+    (winner && winner.m.name!=="Opus 4"
+      ? `routed    ${winner.m.name} = ${usd2(winnerUnit*1000)} / 1K req  &#8594;  <span class="g">${reductionPct.toFixed(0)}% lower unit cost</span>\n  <span class="dim">feeds the firm-wide $11,340/mo routing pool</span>`
+      : `routed    premium tier is already the right-sized choice for this profile`);
+}
+
+/* =========================================================
+   SECTION 04 - SIMULATOR
+   ========================================================= */
+function renderSimulator() {
+  const shift = +$("shift").value, cache = +$("cache").value, growth = +$("growth").value, price = +$("price").value;
+  $("shiftOut").textContent = shift+"%"; $("cacheOut").textContent = cache+"%";
+  $("growthOut").textContent = (growth>=0?"+":"")+growth+"%"; $("priceOut").textContent = (price>=0?"+":"")+price+"%";
+
+  const cacheSaving = INPUT_SPEND * (cache/100) * 0.90;          // 90% cache discount
+  const shiftSaving = PREMIUM_SPEND * (shift/100) * 0.55;        // avg 55% cheaper when right-sized
+  let burn = (TOTAL_SPEND - cacheSaving - shiftSaving);
+  burn = burn * (1 + growth/100) * (1 + price/100);
+
+  const saved = TOTAL_SPEND - burn;
+  const v = computeValue(+$("rate").value, +$("hrs").value);
+  const scaledValue = v.totalValue * (1 + growth/100);
+  const net = scaledValue - burn;
+
+  $("simBurn").textContent = usd(burn);
+  $("simBurnD").innerHTML = `<span class="${burn<TOTAL_SPEND?'down':'up'}">${pct((burn/TOTAL_SPEND-1)*100)} vs base</span>`;
+  $("simAnnual").textContent = usd(burn*12);
+  $("simAnnualD").textContent = "12-month run-rate";
+  $("simNet").textContent = usd(net);
+  $("simNetD").innerHTML = `<span class="down">${(net/burn).toFixed(1)}x return</span>`;
+  $("simSaved").textContent = usd(saved);
+  $("simSavedD").innerHTML = saved>=0 ? `<span class="down">${usd(saved*12)}/yr</span>` : `<span class="up">${usd(-saved*12)}/yr higher</span>`;
+
+  // 12 month forecast: baseline grows with org adoption ~2.5%/mo; simulated applies levers then grows
+  const baseMonthly = [], simMonthly = [];
+  for (let i=0;i<12;i++){
+    const adoption = Math.pow(1.025, i);
+    baseMonthly.push(TOTAL_SPEND * adoption);
+    simMonthly.push(burn * Math.pow(1.025, i));
+  }
+  $("forecast-chart").innerHTML = lineChart([
+    { pts: baseMonthly, color: "var(--ink-3)", dash:true },
+    { pts: simMonthly, color: "var(--red)", dots:true }
+  ], { fmtY: usd, xlabels:["M1","M3","M6","M9","M12"] });
+}
+
+/* =========================================================
+   SECTION 05 - VENDOR
+   ========================================================= */
+function renderVendor() {
+  $("vendor-table").querySelector("tbody").innerHTML = MODELS.map(m=>`
+    <tr><td>${m.name}</td><td>${m.prov}</td><td>${usd2(m.in)}</td><td>${usd2(m.out)}</td>
+    <td>${m.ctxK}K</td><td>${usd2(m.cacheIn)}</td><td>class ${m.lat}</td>
+    <td style="text-align:left;font-family:var(--sans);font-size:12px;color:var(--ink-2)">${m.bestFor}</td></tr>`).join("");
+
+  $("cost-chart").innerHTML = barChartH(
+    MODELS.map(m=>({label:m.name, val:(m.in*3+m.out*1)/4})).sort((a,b)=>b.val-a.val),
+    { fmt: (v)=>usd2(v) }
+  );
+  $("scatter-chart").innerHTML = scatter(MODELS.map(m=>({x:m.lat, y:(m.in*3+m.out*1)/4, label:m.name})));
+}
+
+/* =========================================================
+   SECTION 06 - GOVERNANCE
+   ========================================================= */
+function renderGovernance() {
+  $("alerts").innerHTML = ALERTS.map(a=>`
+    <div class="feed-item"><div class="sev ${a.sev}"></div><div class="body">
+      <div class="t">${a.t}</div><div class="m">${a.m}</div><div class="ts">${a.ts}</div>
+    </div></div>`).join("");
+
+  // provider concentration
+  const byProv = {};
+  TEAMS.forEach(t=>{ const m = MODELS.find(x=>x.name===t.primary); const p = m?m.prov:"Other"; byProv[p]=(byProv[p]||0)+t.spend; });
+  const provData = Object.entries(byProv).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k, val:v}));
+  $("concentration-chart").innerHTML = barChartH(provData, { fmt: usd });
+  const top = provData[0];
+  $("concentration-note").textContent = `${top.label} carries ${(top.val/TOTAL_SPEND*100).toFixed(0)}% of spend. A single-provider outage or price move on ${top.label} is the largest concentration risk. Failover route tested at RTO 90s.`;
+
+  const prolif = [
+    { name:"Sonnet 4", teams:3, calls:840000, spend:13700, status:"primary" },
+    { name:"Opus 4", teams:1, calls:520000, spend:14800, status:"primary" },
+    { name:"GPT-4o", teams:1, calls:310000, spend:8200, status:"review" },
+    { name:"Haiku 4", teams:1, calls:140000, spend:2980, status:"primary" },
+    { name:"GPT-4o-mini", teams:2, calls:30000, spend:600, status:"exception" }
+  ];
+  $("prolif-table").querySelector("tbody").innerHTML = prolif.map(p=>`
+    <tr><td>${p.name}</td><td>${p.teams}</td><td>${compact(p.calls)}</td><td>${usd(p.spend)}</td>
+    <td><span class="chip ${p.status==='primary'?'ok':p.status==='review'?'crit':'warn'}">${p.status}</span></td></tr>`).join("");
+
+  $("key-table").querySelector("tbody").innerHTML = KEYS.map(k=>`
+    <tr><td>${k.id}</td><td>${k.owner}</td><td>${k.team}</td><td>${k.last}</td><td>${compact(k.calls)}</td>
+    <td><span class="chip ${k.status==='ok'?'ok':k.status==='stale'?'crit':'warn'}">${k.status}</span></td></tr>`).join("");
+}
+
+/* =========================================================
+   WIRING
+   ========================================================= */
+["rate","hrs"].forEach(id => $(id).addEventListener("input", renderValue));
+
+["reqReason","reqCtx","reqLat","reqCost"].forEach(id => $(id).addEventListener("input", renderRouting));
+$("routeReset").addEventListener("click", () => { setRequestFromUseCase(currentUseCase); renderRouting(); });
+
+["shift","cache","growth","price"].forEach(id => $(id).addEventListener("input", renderSimulator));
+$("simReset").addEventListener("click", () => { ["shift","cache","growth","price"].forEach(id=>$(id).value=0); renderSimulator(); });
+
+// usecase segmented control
+$("usecase-seg").innerHTML = USECASES.map((u,i)=>`<button aria-pressed="${i===1}" data-uc="${u.id}">${u.label}</button>`).join("");
+$("usecase-seg").addEventListener("click", (e)=>{
+  const b = e.target.closest("button[data-uc]"); if(!b) return;
+  document.querySelectorAll("#usecase-seg button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+  currentUseCase = USECASES.find(u=>u.id===b.dataset.uc);
+  setRequestFromUseCase(currentUseCase);
+  renderRouting();
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+computeValue(140, 5);
+renderTape();
+renderAttribution();
+renderValue();
+setRequestFromUseCase(currentUseCase);
+renderRouting();
+renderSimulator();
+renderVendor();
+renderGovernance();
+</script>
+</body>
+</html>
